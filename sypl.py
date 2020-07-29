@@ -4,8 +4,8 @@ import logging
 from dateutil.parser import isoparse
 from threading import Thread
 import tkinter as tk
-from tkinter import ttk, filedialog
-from PIL import ImageTk, Image
+from tkinter import ttk, filedialog, PhotoImage
+# from PIL import ImageTk, Image
 from yandex_music import Client
 import eyed3
 import requests
@@ -197,7 +197,7 @@ class Window(tk.Frame):
             self.setTitle(f'Hello, {self.display_name}!')
         self.path = __file__[:-7]
         if sys.platform == 'linux':
-            ico = ImageTk.PhotoImage(file=self.path + 'img/favicon.ico')
+            ico = PhotoImage(file=self.path + 'img/favicon.ico')
             self.master.call('wm', 'iconphoto', self.master._w, ico)
         elif sys.platform == 'win32':
             self.master.iconbitmap(self.path + 'img/favicon.ico')
@@ -218,8 +218,8 @@ class WindowAuthorization(Window):
         self.createWindow()
 
     def createWindow(self):
-        load = Image.open(self.path + 'img/authorization.png')
-        render = ImageTk.PhotoImage(load)
+        #load = Image.open(self.path + 'img/authorization.png')
+        render = PhotoImage(file=self.path + 'img/authorization.png')
         img = tk.Label(self.master, image=render, background='white')
         img.image = render
         img.place(x=25, y=50)
@@ -487,8 +487,8 @@ class WindowMain(Window):
                      command):
         bPhoto = f'img/{bPhoto}'
         bPhotoCancel = f'img/{bPhotoCancel}'
-        self.bPhotos[nameButtom] = ImageTk.PhotoImage(file=self.path+bPhoto)
-        self.bPhotos[nameButtom+'Cancel'] = ImageTk.PhotoImage(
+        self.bPhotos[nameButtom] = PhotoImage(file=self.path+bPhoto)
+        self.bPhotos[nameButtom+'Cancel'] = PhotoImage(
             file=self.path+bPhotoCancel)
         self.lBttns[nameButtom] = tk.Button(
             frame, width=100, height=100,
