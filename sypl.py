@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 import logging
@@ -5,7 +6,6 @@ from dateutil.parser import isoparse
 from threading import Thread
 import tkinter as tk
 from tkinter import ttk, filedialog, PhotoImage
-# from PIL import ImageTk, Image
 from yandex_music import Client
 import eyed3
 import requests
@@ -31,7 +31,7 @@ class metadata:
         audiofile.tag.track_num = kwargs['track_num']
         audiofile.tag.year = kwargs['year']
         audiofile.tag.genre = kwargs['genre']
-        
+
         with open('cover.jpg', 'wb') as f:
             kwargs['images'] = kwargs['images'].replace('%%', '400x400')
             kwargs['images'] = 'http://' + kwargs['images']
@@ -218,7 +218,6 @@ class WindowAuthorization(Window):
         self.createWindow()
 
     def createWindow(self):
-        #load = Image.open(self.path + 'img/authorization.png')
         render = PhotoImage(file=self.path + 'img/authorization.png')
         img = tk.Label(self.master, image=render, background='white')
         img.image = render
@@ -245,13 +244,15 @@ class WindowAuthorization(Window):
         EntrPass.place(x=30, y=240+addpix)
 
         self.BLog = tk.Button(self.master, text="Log in", bd=0,
-                         command=self.clikLogin,
-                         width=32, height=2, bg="#fadd61",
-                         font=('Arial', 11), relief="flat")
+                              command=self.clikLogin,
+                              width=32, height=2, bg="#fadd61",
+                              font=('Arial', 11), relief="flat")
 
-        # FIXME под линукс не работает почему-то изменение фона
-        self.BLog.bind("<Enter>", lambda event, b=self.BLog: b.configure(bg="#f7c412")) 
-        self.BLog.bind('<Leave>', lambda event, b=self.BLog: b.configure(bg="#fadd61"))
+        # FIXME в GNOME не работает почему-то изменение фона
+        self.BLog.bind("<Enter>", lambda event,
+                       b=self.BLog: b.configure(bg="#f7c412"))
+        self.BLog.bind('<Leave>', lambda event,
+                       b=self.BLog: b.configure(bg="#fadd61"))
         self.BLog.place(x=30, y=285+addpix)
 
     def clikLogin(self):
@@ -373,7 +374,7 @@ class WindowMain(Window):
                                command=self.dowloadTracks, width=10,
                                relief="flat", pady="5")
         self.bSave.bind(
-            '<Enter>', lambda event, b=self.bSave: b.configure(bg="#f7c412")) # f7c412
+            '<Enter>', lambda event, b=self.bSave: b.configure(bg="#f7c412"))  # f7c412
         self.bSave.bind(
             '<Leave>', lambda event, b=self.bSave: b.configure(bg="#fadd61"))
         self.bSave.configure(state='disabled')
@@ -397,7 +398,8 @@ class WindowMain(Window):
 
     def addRow(self, num, title, artist, dura):
 
-        self.table.insert("", num, iid=None, text=num, values=(title, artist, dura))
+        self.table.insert("", num, iid=None, text=num,
+                          values=(title, artist, dura))
 
     def getPath(self):
         return self.SavePathString.get()
@@ -543,7 +545,6 @@ class WM:
         if self.setting.getParam('token') is None:
             self.showWindowAuthorization()
 
-        # Если окно авторизации было закрыто, то завершает работу
         if self.windowClose:
             sys.exit()
 
