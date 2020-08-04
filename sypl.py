@@ -6,7 +6,7 @@ from dateutil.parser import isoparse
 from threading import Thread
 import tkinter as tk
 from tkinter import ttk, filedialog, PhotoImage
-from yandex_music import Client
+from yandex_music import Client, exceptions
 import eyed3
 import requests
 import utils
@@ -37,6 +37,7 @@ class metadata:
             kwargs['images'] = 'http://' + kwargs['images']
             p = requests.get(kwargs['images'])
             f.write(p.content)
+            # FIXME add exception
             audiofile.tag.images.set(3,
                                      open('cover.jpg', 'rb').read(),
                                      'image/jpeg')
@@ -80,7 +81,7 @@ class GoYandex(setting.setting):
 
     def getPlayListsInfo(self):
         # FIXME: убрать после теста долгой загрузки
-        #time.sleep(5)
+        # time.sleep(5)
         try:
             PersonalPlaylistBlocks = self.client.landing(
                         blocks=['personalplaylists']
@@ -143,6 +144,7 @@ class GoYandex(setting.setting):
     def saveTracks(self):
         ''' Скачивание треков и задание id3-тегов '''
         self.this.showPrigressBar()
+        self.this.setValuePrigressBar(0)
 
         for num, track in enumerate(self.listTrack, 1):
             if self.this.playlistType != 'podcasts':
@@ -153,15 +155,17 @@ class GoYandex(setting.setting):
             fileName = f'[{track.real_id}] {artist} - {track.title}'
             fileName = utils.delSpecCh(fileName)
             fileName = f'{path}{fileName}.mp3'
-
+            print(fileName)
             if os.path.isfile(fileName):
                 # Трек уже скачан и находится в папке
+                self.this.setValuePrigressBar((num / len(self.listTrack)) * 100)
                 continue
 
             track.download(fileName)
+            # FIXME add exception ()
             metadata.set(fileName, artist=artist,
                          title=track.title,
-                         album=track.albums[0].title,
+                         album=track.albums[0].title,                    # FIX
                          track_num=track.albums[0].track_position.index,
                          year=track.albums[0].year,
                          genre=track.albums[0].genre,
@@ -197,7 +201,7 @@ class Window(tk.Frame):
             self.setTitle(f'Hello, {self.display_name}!')
         self.path = __file__[:-7]
         if sys.platform == 'linux':
-            ico = PhotoImage(file=self.path + 'img/favicon.ico')
+            ico = PhotoImage(file=self.path + 'img/favicon.png')
             self.master.call('wm', 'iconphoto', self.master._w, ico)
         elif sys.platform == 'win32':
             self.master.iconbitmap(self.path + 'img/favicon.ico')
@@ -218,32 +222,43 @@ class WindowAuthorization(Window):
         self.createWindow()
 
     def createWindow(self):
-        render = PhotoImage(file=self.path + 'img/authorization.png')
-        img = tk.Label(self.master, image=render, background='white')
-        img.image = render
-        img.place(x=25, y=50)
+        style = ttk.Style()
+        style.configure('TFrame', background="#fff")
 
-        addpix = 40
+        addpix = 30
+
+        frImg = ttk.Frame(self.master)
+        frImg.pack(pady=50, padx=30, anchor=tk.W)
+        frEntryLog = ttk.Frame(self.master, width=200, height=150)
+        frEntryLog.pack(padx=30)
+
+        render = PhotoImage(file=self.path + 'img/authorization.png')
+        img = tk.Label(frImg, image=render, background='white')
+        img.image = render
+        img.pack()
+
         LableLogin = tk.Label(self.master,
                               text="Enter your username, email or phone",
                               foreground='#999', background='white',
                               font=('Arial', 9))
+        LableLogin.place(x=30, y=158+addpix)
+
         self.textLogin = tk.StringVar()
-        Entrlogin = tk.Entry(self.master, textvariable=self.textLogin,
-                             font=('Arial', 16), width=24)
-        LableLogin.place(x=27, y=160+addpix)
-        Entrlogin.place(x=30, y=180+addpix)
+        Entrlogin = tk.Entry(frEntryLog, textvariable=self.textLogin,
+                             font=('Arial', 16), width=23)
+        Entrlogin.pack(pady=30)
 
         LablePass = tk.Label(self.master, text="Password",
                              foreground='#999', background='white',
                              font=('Arial', 9))
-        self.textPass = tk.StringVar()
-        EntrPass = tk.Entry(self.master, textvariable=self.textPass,
-                            font=('Arial', 16), width=24, show="*")
-        LablePass.place(x=27, y=220+addpix)
-        EntrPass.place(x=30, y=240+addpix)
+        LablePass.place(x=30, y=217+addpix)
 
-        self.BLog = tk.Button(self.master, text="Log in", bd=0,
+        self.textPass = tk.StringVar()
+        EntrPass = tk.Entry(frEntryLog, textvariable=self.textPass,
+                            font=('Arial', 16), width=23, show="*")
+        EntrPass.pack()
+
+        self.BLog = tk.Button(frEntryLog, text="Log in", bd=0,
                               command=self.clikLogin,
                               width=32, height=2, bg="#fadd61",
                               font=('Arial', 11), relief="flat")
@@ -253,7 +268,7 @@ class WindowAuthorization(Window):
                        b=self.BLog: b.configure(bg="#f7c412"))
         self.BLog.bind('<Leave>', lambda event,
                        b=self.BLog: b.configure(bg="#fadd61"))
-        self.BLog.place(x=30, y=285+addpix)
+        self.BLog.pack(pady=10)
 
     def clikLogin(self):
         '''
@@ -374,7 +389,7 @@ class WindowMain(Window):
                                command=self.dowloadTracks, width=10,
                                relief="flat", pady="5")
         self.bSave.bind(
-            '<Enter>', lambda event, b=self.bSave: b.configure(bg="#f7c412"))  # f7c412
+            '<Enter>', lambda event, b=self.bSave: b.configure(bg="#f7c412"))  # #f7c412
         self.bSave.bind(
             '<Leave>', lambda event, b=self.bSave: b.configure(bg="#fadd61"))
         self.bSave.configure(state='disabled')
@@ -537,7 +552,16 @@ class WM:
         logger.setLevel(logging.ERROR)
         self.root = None
         self.windowClose = False
-        self.yandex = GoYandex()
+        try:
+            self.yandex = GoYandex()
+        except exceptions.NetworkError as e:
+            logging.error(e)
+            print(e)
+            self.windowClose = True
+
+        if sys.platform == 'linux':
+            self.checkDisplay()
+
         self.run()
 
     def run(self):
@@ -569,6 +593,12 @@ class WM:
     def processingExit(self):
         self.windowClose = self.showWindow.isClose
         self.root.destroy()
+
+    def checkDisplay(self):
+        if not os.environ.get('DISPLAY', False):
+            logging.error('Display not found')
+            print('Display not found')
+            self.windowClose = True
 
 
 if __name__ == '__main__':

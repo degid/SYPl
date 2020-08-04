@@ -8,13 +8,14 @@ class setting:
         if sys.platform == 'linux':
             self.pklFile = os.path.expanduser('~/.local/share/SYPl/設定.pkl')
         elif sys.platform == 'win32':
-            self.pklFile = os.path.expanduser('~\\AppData\\Roaming\\SYPl\\設定.pkl')
+            # APPDATA
+            self.pklFile = os.path.expanduser('~/AppData/Roaming/SYPl/設定.pkl')
         self.set = dict()
         self.chekFile()
 
     def chekFile(self):
         if not os.path.exists(self.pklFile[:-6]):
-            os.mkdir(self.pklFile[:-6])
+            os.makedirs(self.pklFile[:-6])
         if not os.path.isfile(self.pklFile):
             with open(self.pklFile, 'wb') as f:
                 pickle.dump(self.set, f)
