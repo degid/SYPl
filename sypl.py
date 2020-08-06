@@ -20,29 +20,27 @@ MEDIUM_FONT = ("Verdana", 10)
 SMALL_FONT = ("Verdana", 8)
 
 
-class metadata:
-    def set(file, **kwargs):
-        audiofile = eyed3.load(file)
-        audiofile.initTag()
+class metadataMP3:
+    def __init__(self, file):
+        self.audiofile = eyed3.load(file)
+        self.audiofile.initTag()
 
-        audiofile.tag.artist = kwargs['artist']
-        audiofile.tag.title = kwargs['title']
-        audiofile.tag.album = kwargs['album']
-        audiofile.tag.track_num = kwargs['track_num']
-        audiofile.tag.year = kwargs['year']
-        audiofile.tag.genre = kwargs['genre']
+    def setTags(self, **kwargs):
+        for tag in kwargs:
+            setattr(self.audiofile.tag, tag, kwargs[tag])
 
+    def setImage(self, image):
         with open('cover.jpg', 'wb') as f:
-            kwargs['images'] = kwargs['images'].replace('%%', '400x400')
-            kwargs['images'] = 'http://' + kwargs['images']
-            p = requests.get(kwargs['images'])
-            f.write(p.content)
-            # FIXME add exception
-            audiofile.tag.images.set(3,
-                                     open('cover.jpg', 'rb').read(),
-                                     'image/jpeg')
-        audiofile.tag.save(version=eyed3.id3.ID3_DEFAULT_VERSION,
-                           encoding='utf-8')
+            image = 'http://' + image.replace('%%', '400x400')
+            biImage = requests.get(image)
+            f.write(biImage.content)
+        # FIXME add exception
+        self.audiofile.tag.images.set(3, open('cover.jpg', 'rb').read(),
+                                      'image/jpeg')
+
+    def save(self):
+        self.audiofile.tag.save(version=eyed3.id3.ID3_DEFAULT_VERSION,
+                                encoding='utf-8')
 
 
 class GoYandex(setting.setting):
@@ -163,13 +161,22 @@ class GoYandex(setting.setting):
 
             track.download(fileName)
             # FIXME add exception ()
-            metadata.set(fileName, artist=artist,
-                         title=track.title,
-                         album=track.albums[0].title,                    # FIX
-                         track_num=track.albums[0].track_position.index,
-                         year=track.albums[0].year,
-                         genre=track.albums[0].genre,
-                         images=track.og_image)
+            mp3file = metadataMP3(fileName)
+            mp3file.setTags(artist=artist,
+                            title=track.title,
+                            album=track.albums[0].title,                    # FIX
+                            track_num=track.albums[0].track_position.index,
+                            year=track.albums[0].year,
+                            genre=track.albums[0].genre)
+            mp3file.setImage(track.og_image)
+            mp3file.save()
+            #metadata.set(fileName, artist=artist,
+            #             title=track.title,
+            #             album=track.albums[0].title,                    # FIX
+            #             track_num=track.albums[0].track_position.index,
+            #             year=track.albums[0].year,
+            #             genre=track.albums[0].genre,
+            #             images=track.og_image)
 
             self.this.setValuePrigressBar((num / len(self.listTrack)) * 100)
             if not self.startDownload:
