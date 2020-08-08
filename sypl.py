@@ -146,7 +146,8 @@ class GoYandex(setting.setting):
 
         for num, track in enumerate(self.listTrack, 1):
             if self.this.playlistType != 'podcasts':
-                artist = track.artists[0].name
+                if len(track.artists):
+                    artist = track.artists[0].name
             else:
                 artist = track.albums[0].title
             path = self.this.getPath()
@@ -170,13 +171,6 @@ class GoYandex(setting.setting):
                             genre=track.albums[0].genre)
             mp3file.setImage(track.og_image)
             mp3file.save()
-            #metadata.set(fileName, artist=artist,
-            #             title=track.title,
-            #             album=track.albums[0].title,                    # FIX
-            #             track_num=track.albums[0].track_position.index,
-            #             year=track.albums[0].year,
-            #             genre=track.albums[0].genre,
-            #             images=track.og_image)
 
             self.this.setValuePrigressBar((num / len(self.listTrack)) * 100)
             if not self.startDownload:
