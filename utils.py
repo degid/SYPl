@@ -31,20 +31,40 @@ class Image:
         self.BMPnums = BMPdata.getNumsBMP()
         self.file = file
         self.data = None
-        if self.detektImg():
-            self.readBitMap(self.data, self.tagBITMAPFILEHEADER.bfOffBits,
-                            self.tagBITMAPINFOHEADER.biWidth,
-                            self.tagBITMAPINFOHEADER.biHeight)
+        self.mode = None
+        self.size = (0, 0)
+        self.detektImg()
+        self.BitMapLines = self.readBitMap(self.data,
+                                           self.tagBITMAPFILEHEADER.bfOffBits,
+                                           self.size[0], self.size[1])
+
+    @property
+    def width(self):
+        return self.tagBITMAPINFOHEADER.biWidth
+
+    @property
+    def height(self):
+        return self.tagBITMAPINFOHEADER.biHeight
+
+    def __repr__(self):
+        msg = (
+            f'{self.__class__.__module__}.{self.__class__.__name__} '
+            f'image mode {self.mode} '
+            f'size={self.size[0]}x{self.size[1]} '
+            f'at 0x{id(self):X}'
+        )
+        return msg
 
     def detektImg(self):
         '''
-        Reading headers and verify it's the BMP-type
+        Reading headers, set atr and verify it's the BMP-type
         '''
         self.readFile()
         self.readBMPHeaders()
-        self.tagBITMAPFILEHEADER = None
-        self.tagBITMAPINFOHEADER = None
-        return True if self.tagBITMAPFILEHEADER.bfType == b'BM' else False
+        self.mode = 'RGB'
+        self.size = (self.tagBITMAPINFOHEADER.biWidth,
+                     self.tagBITMAPINFOHEADER.biHeight)
+        raise self.tagBITMAPFILEHEADER.bfType == b'BM'
 
     def readFile(self):
         with open(self.file, 'rb') as f:
