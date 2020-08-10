@@ -2,6 +2,7 @@
 import os
 import sys
 import logging
+# import tempfile
 from dateutil.parser import isoparse
 from threading import Thread
 import tkinter as tk
@@ -30,6 +31,7 @@ class metadataMP3:
             setattr(self.audiofile.tag, tag, kwargs[tag])
 
     def setImage(self, image):
+        # FIXME: tempfile
         with open('cover.jpg', 'wb') as f:
             image = 'http://' + image.replace('%%', '400x400')
             biImage = requests.get(image)
@@ -148,6 +150,8 @@ class GoYandex(setting.setting):
             if self.this.playlistType != 'podcasts':
                 if len(track.artists):
                     artist = track.artists[0].name
+                else:
+                    artist = ''
             else:
                 artist = track.albums[0].title
             path = self.this.getPath()
@@ -238,21 +242,21 @@ class WindowAuthorization(Window):
         img.image = render
         img.pack()
 
-        LableLogin = tk.Label(self.master,
+        LabelLogin = tk.Label(self.master,
                               text="Enter your username, email or phone",
                               foreground='#999', background='white',
                               font=('Arial', 9))
-        LableLogin.place(x=30, y=158+addpix)
+        LabelLogin.place(x=30, y=158+addpix)
 
         self.textLogin = tk.StringVar()
         Entrlogin = tk.Entry(frEntryLog, textvariable=self.textLogin,
                              font=('Arial', 16), width=23)
         Entrlogin.pack(pady=30)
 
-        LablePass = tk.Label(self.master, text="Password",
+        LabelPass = tk.Label(self.master, text="Password",
                              foreground='#999', background='white',
                              font=('Arial', 9))
-        LablePass.place(x=30, y=217+addpix)
+        LabelPass.place(x=30, y=217+addpix)
 
         self.textPass = tk.StringVar()
         EntrPass = tk.Entry(frEntryLog, textvariable=self.textPass,
