@@ -1,6 +1,8 @@
 import BMPdata
 import struct
-import base64
+import operator
+from functools import reduce
+import copy
 
 
 def timeStr(duration_ms, colon=True):
@@ -117,14 +119,20 @@ class Image:
                 dataImg += struct.pack("<B", 0)
         return dataImg
 
-    def getBase64(self):
-        img = self.buildImage(self.tagBITMAPFILEHEADER,
-                              self.tagBITMAPINFOHEADER,
-                              self.BitMapLines)
-        return base64.b64encode(img)
-
     def getPPM(self):
-        pass
+        def unpackList(lst):
+            return reduce(operator.iadd, lst, [])
+
+        def unpackRGB(color):
+            return struct.pack("<BBB", color.Red, color.Green, color.Blue)
+
+        copyBitMapLines = copy.copy(self.BitMapLines)
+        copyBitMapLines.reverse()
+        picPixel = unpackList(copyBitMapLines)
+        bytePicPixel = list(map(unpackRGB, picPixel))
+        P6 = bytes(f'P6\n{self.width} {self.height}\n255\n', encoding='utf8')
+
+        return P6 + b''.join(bytePicPixel)
 
     def addSymbol(self, image, X, Y, sybmol, alpha):
         BitMap = self.readBitMap(self.BMPnums[sybmol], 1, 9, 13)
