@@ -1,5 +1,11 @@
 from collections import namedtuple
 
+
+class ImageTypeError(Exception):
+    def __str__(self):
+        return 'The image must be in 24b BMP'
+
+
 BITMAPFILEHEADER = namedtuple('BITMAPFILEHEADER', [
     'bfType',
     'bfSize',
