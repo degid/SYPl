@@ -1,5 +1,6 @@
 import BMPdata
 import struct
+import base64
 
 
 def timeStr(duration_ms, colon=True):
@@ -32,11 +33,10 @@ class Image:
         self.file = file
         self.data = None
         self.mode = None
-        self.size = (0, 0)
         self.detektImg()
         self.BitMapLines = self.readBitMap(self.data,
                                            self.tagBITMAPFILEHEADER.bfOffBits,
-                                           self.size[0], self.size[1])
+                                           self.width, self.height)
 
     @property
     def width(self):
@@ -49,8 +49,8 @@ class Image:
     def __repr__(self):
         msg = (
             f'{self.__class__.__module__}.{self.__class__.__name__} '
-            f'image mode {self.mode} '
-            f'size={self.size[0]}x{self.size[1]} '
+            f'mode={self.mode} '
+            f'size={self.width}x{self.height} '
             f'at 0x{id(self):X}'
         )
         return msg
@@ -62,9 +62,8 @@ class Image:
         self.readFile()
         self.readBMPHeaders()
         self.mode = 'RGB'
-        self.size = (self.tagBITMAPINFOHEADER.biWidth,
-                     self.tagBITMAPINFOHEADER.biHeight)
-        raise self.tagBITMAPFILEHEADER.bfType == b'BM'
+        if self.tagBITMAPFILEHEADER.bfType != b'BM':
+            raise BMPdata.ImageTypeError()
 
     def readFile(self):
         with open(self.file, 'rb') as f:
@@ -86,7 +85,7 @@ class Image:
         return BitMapLines
 
     def readBMPHeaders(self):
-        self.tagBITMAPFILEHEADER = BMPdata.BITMAPINFOHEADER._make(
+        self.tagBITMAPFILEHEADER = BMPdata.BITMAPFILEHEADER._make(
                                    struct.unpack_from('<2sIHHI',
                                                       self.data,
                                                       0)
@@ -97,7 +96,7 @@ class Image:
                                                       14)
                                 )
 
-    def buildImage(BitMapFileHeader, BitMapInfoHeader, BitMapLines):
+    def buildImage(self, BitMapFileHeader, BitMapInfoHeader, BitMapLines):
         dataImg = bytearray()
         padBytes = (2 - (BitMapInfoHeader.biWidth * 3) % 2) % 2
         templ = ['2s'] + list('IHHI')
@@ -117,6 +116,15 @@ class Image:
             if padBytes:
                 dataImg += struct.pack("<B", 0)
         return dataImg
+
+    def getBase64(self):
+        img = self.buildImage(self.tagBITMAPFILEHEADER,
+                              self.tagBITMAPINFOHEADER,
+                              self.BitMapLines)
+        return base64.b64encode(img)
+
+    def getPPM(self):
+        pass
 
     def addSymbol(self, image, X, Y, sybmol, alpha):
         BitMap = self.readBitMap(self.BMPnums[sybmol], 1, 9, 13)
