@@ -1,8 +1,5 @@
-import BMPdata
+import PPMdata
 import struct
-import operator
-from functools import reduce
-import copy
 
 
 def timeStr(duration_ms, colon=True):
@@ -31,22 +28,15 @@ def delSpecCh(str):
 
 class Image:
     def __init__(self, file):
-        self.BMPnums = BMPdata.getNumsBMP()
+        self.PPMnums = PPMdata.getNumsPPM()
         self.file = file
         self.data = None
-        self.mode = None
-        self.detektImg()
-        self.BitMapLines = self.readBitMap(self.data,
-                                           self.tagBITMAPFILEHEADER.bfOffBits,
-                                           self.width, self.height)
-
-    @property
-    def width(self):
-        return self.tagBITMAPINFOHEADER.biWidth
-
-    @property
-    def height(self):
-        return self.tagBITMAPINFOHEADER.biHeight
+        self.mode = 0
+        self.type = ''
+        self.width = 0
+        self.height = 0
+        self.OffBits = 0
+        self.detektPPM()
 
     def __repr__(self):
         msg = (
@@ -57,82 +47,54 @@ class Image:
         )
         return msg
 
-    def detektImg(self):
+    def detektPPM(self):
         '''
-        Reading headers, set atr and verify it's the BMP-type
+        Reading headers, set atr and verify it's the Px-type PPM
         '''
         self.readFile()
-        self.readBMPHeaders()
-        self.mode = 'RGB'
-        if self.tagBITMAPFILEHEADER.bfType != b'BM':
-            raise BMPdata.ImageTypeError()
+        self.readPPM()
+        # 80 = 'P'
+        if self.type[0] != 80:
+            raise PPMdata.ImageTypeError()
 
     def readFile(self):
         with open(self.file, 'rb') as f:
             self.data = bytearray(f.read())
 
-    def readBitMap(self, data, bfOffBits, biWidth, biHeight):
-        padBytes = (4 - (biWidth * 3) % 4) % 4
-        BitMapLines = []
-        startLine = bfOffBits
-        endLine = startLine + biWidth * 3
-        for line in range(biHeight):
-            BitMapLine = []
-            for count, indx in enumerate(range(startLine, endLine, 3)):
-                BitMapLine.append(BMPdata.RGBQUAD._make(
-                                  struct.unpack_from('<BBB', data, indx)))
-            BitMapLines.append(BitMapLine)
-            startLine += biWidth * 3 + padBytes
-            endLine += biWidth * 3 + padBytes
-        return BitMapLines
+    def readPPM(self):
+        self.type = struct.unpack_from('<2s', self.data, 0)[0]
 
-    def readBMPHeaders(self):
-        self.tagBITMAPFILEHEADER = BMPdata.BITMAPFILEHEADER._make(
-                                   struct.unpack_from('<2sIHHI',
-                                                      self.data,
-                                                      0)
-                                )
-        self.tagBITMAPINFOHEADER = BMPdata.BITMAPINFOHEADER._make(
-                                   struct.unpack_from('<ILLHHIILLII',
-                                                      self.data,
-                                                      14)
-                                )
+        i = 2
+        numParm = 0
+        param = [b'']*3
+        while True:
+            i += 1
+            if self.data[i] == 10 and numParm == 2:
+                # complite
+                break
+            elif self.data[i] == 10 or self.data[i] == 32:
+                # next param
+                numParm += 1
+                continue
 
-    def buildImage(self, BitMapFileHeader, BitMapInfoHeader, BitMapLines):
-        dataImg = bytearray()
-        padBytes = (2 - (BitMapInfoHeader.biWidth * 3) % 2) % 2
-        templ = ['2s'] + list('IHHI')
-        for x, byte in enumerate(BitMapFileHeader):
-            dataImg += struct.pack(f"<{templ[x]}", byte)
+            if self.data[3] > 47 and self.data[3] < 58:
+                param[numParm] += struct.unpack_from('<c', self.data, i)[0]
+            else:
+                raise PPMdata.ImageReadError()
 
-        templ = list('ILLHHIILLII')
-        for x, byte in enumerate(BitMapInfoHeader):
-            dataImg += struct.pack(f"<{templ[x]}", byte)
-
-        for line in BitMapLines:
-            for color in line:
-                dataImg += struct.pack("<BBB",
-                                       color.Blue,
-                                       color.Green,
-                                       color.Red)
-            if padBytes:
-                dataImg += struct.pack("<B", 0)
-        return dataImg
+        self.OffBits = i + 1
+        self.width = int(param[0])
+        self.height = int(param[1])
+        self.mode = int(param[2])
+        self.BitMap = self.data[self.OffBits:]
+        return i + 1
 
     def getPPM(self):
-        def unpackList(lst):
-            return reduce(operator.iadd, lst, [])
-
-        def unpackRGB(color):
-            return struct.pack("<BBB", color.Red, color.Green, color.Blue)
-
-        copyBitMapLines = copy.copy(self.BitMapLines)
-        copyBitMapLines.reverse()
-        picPixel = unpackList(copyBitMapLines)
-        bytePicPixel = list(map(unpackRGB, picPixel))
-        P6 = bytes(f'P6\n{self.width} {self.height}\n255\n', encoding='utf8')
-
-        return P6 + b''.join(bytePicPixel)
+        Px = self.type
+        Px += bytes(f'\n{self.width} {self.height}\n{self.mode}\n',
+                    encoding='utf8')
+        Px += self.BitMap
+        return Px
 
     def addSymbol(self, image, X, Y, sybmol, alpha):
         BitMap = self.readBitMap(self.BMPnums[sybmol], 1, 9, 13)
