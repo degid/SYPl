@@ -26,9 +26,16 @@ def delSpecCh(str):
     return ' '.join(str.split())
 
 
+def group(iterable, count):
+    return zip(*[iter(iterable)] * count)
+
+
+def packRGB(rgb):
+    return struct.pack('<BBB', rgb[0], rgb[1], rgb[2])
+
+
 class Image:
     def __init__(self, file):
-        self.PPMnums = PPMdata.getNumsPPM()
         self.file = file
         self.data = None
         self.mode = 0
@@ -86,20 +93,32 @@ class Image:
         self.width = int(param[0])
         self.height = int(param[1])
         self.mode = int(param[2])
-        self.BitMap = self.data[self.OffBits:]
+        self.BitMap = list(group(self.data[self.OffBits:], 3))
         return i + 1
 
     def getPPM(self):
         Px = self.type
         Px += bytes(f'\n{self.width} {self.height}\n{self.mode}\n',
                     encoding='utf8')
-        Px += self.BitMap
-        return Px
+        return Px + b''.join(list(map(packRGB, self.BitMap)))
 
-    def addSymbol(self, image, X, Y, sybmol, alpha):
-        BitMap = self.readBitMap(self.BMPnums[sybmol], 1, 9, 13)
+    def addCount(self, sybmols, X, Y, alpha):
+        ''' symbol 9x13 '''
 
-        for line, _ in enumerate(BitMap):
-            for colum, _ in enumerate(BitMap[line]):
-                if BitMap[line][colum] != alpha:
-                    image[line+Y][colum+X] = BitMap[line][colum]
+        sybmols = list(map(int, list(str(sybmols))))
+        center = len(sybmols) * 9 // 2 - 1
+        for symb in sybmols:
+            BitMap = PPMdata.getNumsPPM(symb)
+            symbolMap = group(BitMap, 3)
+            row, column = 0, 0
+            for color in symbolMap:
+                if column == 9:
+                    column = 0
+                    row += 1
+
+                if color not in alpha:
+                    xyPixel = row * self.width - center \
+                              + column + X + Y * self.width
+                    self.BitMap[xyPixel] = color
+                column += 1
+            X += 9

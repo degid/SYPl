@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import os
 import sys
+import time
 import logging
-# import tempfile
+import tempfile
 from dateutil.parser import isoparse
 from threading import Thread
 import tkinter as tk
@@ -206,7 +207,7 @@ class Window(tk.Frame):
             self.setTitle(f'Hello, {self.display_name}!')
         self.path = __file__[:-7]
         if sys.platform == 'linux':
-            ico = PhotoImage(file=self.path + 'img/favicon.png')
+            ico = PhotoImage(file=self.path + 'img/favicon32.png')
             self.master.call('wm', 'iconphoto', self.master._w, ico)
         elif sys.platform == 'win32':
             self.master.iconbitmap(self.path + 'img/favicon.ico')
@@ -314,8 +315,11 @@ class WindowMain(Window):
         self.initInfo()
 
     def initInfo(self):
-        thread = Thread(target=self.yandex.getPlayListsInfo)
-        thread.start()
+        threadYd = Thread(target=self.yandex.getPlayListsInfo)
+        threadYd.start()
+
+        threadCount = Thread(target=self.changeButtonImg)
+        threadCount.start()
 
     def createWindow(self):
         style = ttk.Style()
@@ -522,6 +526,34 @@ class WindowMain(Window):
         self.lBttns[nameButtom].bind(
             '<Leave>', lambda event, b=[nameButtom, Leave]:
             self.fnbuttonBLeave(event, b))
+
+    def changeButtonImg(self):
+        brk = 0
+        count = 0
+        while 'playlistOfTheDay' not in self.yandex.playListsInfo:
+            time.sleep(.1)
+            if brk > 100:
+                break
+            brk += 1
+        else:
+            count = self.yandex.playListsInfo['playlistOfTheDay'].play_counter.value
+
+        if not count:
+            return
+
+        imgPPM = utils.Image(file=self.path + 'img/PlaylistOftheDay100Num.ppm')
+        imgPPM.addCount(count, 10, 83, [(77, 200, 73), (82, 201, 79)])
+        imgPPM = imgPPM.getPPM()
+
+        fName = None
+        with tempfile.TemporaryFile(delete=False) as fp:
+            fName = fp.name
+            fp.write(imgPPM)
+
+        if fName:
+            self.bPhotos['playlistOfTheDay'] = PhotoImage(file=fName)
+            self.lBttns['playlistOfTheDay']['image'] = self.bPhotos['playlistOfTheDay']
+            os.remove(fName)
 
     def fnbuttonBLeave(self, event, data):
         if self.playlistType == data[0]:
