@@ -104,21 +104,17 @@ class Image:
 
     def addCount(self, sybmols, X, Y, alpha):
         ''' symbol 9x13 '''
-
+        sizeSymb = (9, 13)
         sybmols = list(map(int, list(str(sybmols))))
         center = len(sybmols) * 9 // 2 - 1
         for symb in sybmols:
             BitMap = PPMdata.getNumsPPM(symb)
-            symbolMap = group(BitMap, 3)
-            row, column = 0, 0
-            for color in symbolMap:
-                if column == 9:
-                    column = 0
-                    row += 1
+            symbolMap = list(group(BitMap, 3))
 
-                if color not in alpha:
-                    xyPixel = row * self.width - center \
-                              + column + X + Y * self.width
-                    self.BitMap[xyPixel] = color
-                column += 1
-            X += 9
+            for column in range(sizeSymb[0]):
+                for row in range(sizeSymb[1]):
+                    color = symbolMap[row * sizeSymb[0] + column]
+                    if color not in alpha:
+                        xyPixel = row + Y * self.width + column + X - center
+                        self.BitMap[xyPixel] = color
+            X += sizeSymb[0]
