@@ -115,6 +115,6 @@ class Image:
                 for row in range(sizeSymb[1]):
                     color = symbolMap[row * sizeSymb[0] + column]
                     if color not in alpha:
-                        xyPixel = row + Y * self.width + column + X - center
+                        xyPixel = (row + Y) * self.width + column + X - center
                         self.BitMap[xyPixel] = color
             X += sizeSymb[0]
