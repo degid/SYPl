@@ -119,10 +119,10 @@ class Image:
                         self.BitMap[xyPixel] = color
             X += sizeSymb[0]
 
-    def darker(self, value):
+    def darker(self, *value):
         for i, color in enumerate(self.BitMap):
             if color[0] > 100 and color[1] > 150 and color[2] > 150:
                 continue
 
-            newColor = tuple(x[0] - x[1] for x in zip(color, value))
+            newColor = (x[0] - x[1] for x in zip(color, value))
             self.BitMap[i] = tuple(map(lambda chnl: max(0, chnl), newColor))
