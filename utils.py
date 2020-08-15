@@ -103,10 +103,13 @@ class Image:
         return Px + b''.join(list(map(packRGB, self.BitMap)))
 
     def addCount(self, sybmols, X, Y, alpha):
-        ''' symbol 9x13 '''
+        ''' Add number to a picture
+
+        Num, X, Y, background: list of tuples (R, G, B)
+        '''
         sizeSymb = (9, 13)
         sybmols = list(map(int, list(str(sybmols))))
-        center = len(sybmols) * 9 // 2 - 1
+        center = len(sybmols) * sizeSymb[0] // 2 - 1
         for symb in sybmols:
             BitMap = PPMdata.getNumsPPM(symb)
             symbolMap = list(group(BitMap, 3))
@@ -120,7 +123,11 @@ class Image:
             X += sizeSymb[0]
 
     def darker(self, *value):
+        '''
+        values: R, G, B
+        '''
         for i, color in enumerate(self.BitMap):
+            # threshold value // FIXME use Correction factor
             if color[0] > 100 and color[1] > 150 and color[2] > 150:
                 continue
 
