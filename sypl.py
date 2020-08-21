@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-import os
-import sys
-import time
-import logging
-import tempfile
 from dateutil.parser import isoparse
+import logging
+import os
+import requests
+import sys
+import tempfile
 from threading import Thread
+import time
 import tkinter as tk
 from tkinter import ttk, filedialog, PhotoImage
-from yandex_music import Client, exceptions
+
 import eyed3
-import requests
-import utils
+from yandex_music import Client, exceptions
+
 import setting
+import utils
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(filename="error.log", level=logging.ERROR, format=format)
@@ -22,48 +24,44 @@ MEDIUM_FONT = ("Verdana", 10)
 SMALL_FONT = ("Verdana", 8)
 
 
-class metadataMP3:
+class MetadataMP3:
     def __init__(self, file):
         self.audiofile = eyed3.load(file)
         self.audiofile.initTag()
 
-    def setTags(self, **kwargs):
+    def set_tags(self, **kwargs):
         for tag in kwargs:
             setattr(self.audiofile.tag, tag, kwargs[tag])
 
-    def setImage(self, image):
+    def set_image(self, image):
         # FIXME: tempfile
         with open('cover.jpg', 'wb') as f:
-            image = 'http://' + image.replace('%%', '400x400')
+            image = f"http://{image.replace('%%', '400x400')}"
             biImage = requests.get(image)
             f.write(biImage.content)
         # FIXME add exception
-        self.audiofile.tag.images.set(3, open('cover.jpg', 'rb').read(),
-                                      'image/jpeg')
+        self.audiofile.tag.images.set(3, open('cover.jpg', 'rb').read(), 'image/jpeg')
 
     def save(self):
-        self.audiofile.tag.save(version=eyed3.id3.ID3_DEFAULT_VERSION,
-                                encoding='utf-8')
+        self.audiofile.tag.save(version=eyed3.id3.ID3_DEFAULT_VERSION, encoding='utf-8')
 
 
-class GoYandex(setting.setting):
-    def __init__(self):
+class GoYandex():
+    def __init__(self, setting):
         self.client = Client()
         super().__init__()
-        self.selectPL = None
-        self.startLoadPl = False
-        self.startDownload = False
+        self.select_PL = None
+        self.start_load_Pl = False
+        self.start_download = False
         self.this = None
-        self.listTrack = []
-        self.playListsInfo = dict()
+        self.list_track = []
+        self.setting = setting
+        self.play_lists_Info = dict()
 
-    def generateToken(self, login, pas):
+    def generate_token(self, login, pas):
         try:
-            token = self.client.generate_token_by_username_and_password(
-                    username=login,
-                    password=pas
-                    )
-            self.save('token', token)
+            token = self.client.generate_token_by_username_and_password(username=login, password=pas)
+            self.setting.save('token', token)
             return False
         except Exception as e:
             if e.args[0].startswith('invalid_grant'):
@@ -74,53 +72,52 @@ class GoYandex(setting.setting):
                 logging.getLogger(err)
             return err
 
-    def authorizationToken(self, token):
+    def authorization_token(self, token):
         try:
             self.client = Client.from_token(token)
         except Exception as e:
             logging.getLogger(e.args[0])
 
-    def getPlayListsInfo(self):
+    def get_play_lists_info(self):
         # FIXME: убрать после теста долгой загрузки
         # time.sleep(5)
+        # run in Thread
         try:
-            PersonalPlaylistBlocks = self.client.landing(
-                        blocks=['personalplaylists']
-                    ).blocks[0]
+            personal_playlist_blocks = self.client.landing(blocks=['personalplaylists']).blocks[0]
         except Exception as e:
             logging.getLogger(e.args[0])
             return False
 
-        for plLst in PersonalPlaylistBlocks.entities:
+        for plLst in personal_playlist_blocks.entities:
             if plLst.data.data.play_counter is not None:
                 pc = plLst.data.data.play_counter
                 pc.description = pc.description.replace('&nbsp;', ' ')
                 pc.description = pc.description.replace('&mdash;', '–')
-            self.playListsInfo[plLst.data.data.generated_playlist_type] = plLst.data.data
+            self.play_lists_Info[plLst.data.data.generated_playlist_type] = plLst.data.data
         return True
 
-    def playListGet(self):
-        if not self.getPlayListsInfo():
+    def get_play_list(self):
+        # run in Thread
+        if not self.get_play_lists_info():
             return
 
-        if self.this.playlistType not in self.playListsInfo:
+        if self.this.playlistType not in self.play_lists_Info:
             # FIXME: выбрать поле для вывода информации
             print('Не удалось найти плейлист')
             logging.getLogger('Не удалось найти плейлист')
-            self.startLoadPl = False
+            self.start_load_Pl = False
             return
 
-        DailyPlaylist = self.playListsInfo[self.this.playlistType]
+        daily_play_list = self.play_lists_Info[self.this.playlistType]
 
-        self.listTrack.clear()
-        self.selectPL = self.client.users_playlists(user_id=DailyPlaylist.uid,
-                                                    kind=DailyPlaylist.kind)
-        plTitle = self.selectPL[0].title
-        plCount = self.selectPL[0].track_count
+        self.list_track.clear()
+        self.select_PL = self.client.users_playlists(user_id=daily_play_list.uid, kind=daily_play_list.kind)
+        plTitle = self.select_PL[0].title
+        plCount = self.select_PL[0].track_count
         self.this.setTitle(plTitle)
 
-        for counter, track in enumerate(self.selectPL[0].tracks, 1):
-            self.listTrack.append(track.track)
+        for counter, track in enumerate(self.select_PL[0].tracks, 1):
+            self.list_track.append(track.track)
             self.this.setTitle(f'{plTitle} - {counter}/{plCount}')
 
             if self.this.playlistType != 'podcasts':
@@ -130,24 +127,24 @@ class GoYandex(setting.setting):
                     artist = '<BREAK>'
             else:
                 artist = track.track.albums[0].title
-            self.this.addRow(counter, track.track.title,
-                             artist, utils.timeStr(track.track.duration_ms))
+            self.this.addRow(counter, track.track.title, artist, utils.timeStr(track.track.duration_ms))
 
-            if not self.startLoadPl:
+            if not self.start_load_Pl:
                 self.this.setTitle(f'{plTitle} - {counter}/{plCount} - BREAK')
                 break
         else:
-            duration = utils.timeStr(self.selectPL[0].duration_ms, 0)
+            duration = utils.timeStr(self.select_PL[0].duration_ms, 0)
             self.this.setTitle(f'{plTitle} - {duration}')
             self.this.setNormalStatus()
-            self.startLoadPl = False
+            self.start_load_Pl = False
 
-    def saveTracks(self):
+    def save_tracks(self):
         ''' Скачивание треков и задание id3-тегов '''
+        # run in Thread
         self.this.showPrigressBar()
         self.this.setValuePrigressBar(0)
 
-        for num, track in enumerate(self.listTrack, 1):
+        for num, track in enumerate(self.list_track, 1):
             if self.this.playlistType != 'podcasts':
                 if len(track.artists):
                     artist = track.artists[0].name
@@ -162,29 +159,29 @@ class GoYandex(setting.setting):
             print(fileName)
             if os.path.isfile(fileName):
                 # Трек уже скачан и находится в папке
-                self.this.setValuePrigressBar((num / len(self.listTrack)) * 100)
+                self.this.setValuePrigressBar((num / len(self.list_track)) * 100)
                 continue
 
             track.download(fileName)
             # FIXME add exception ()
-            mp3file = metadataMP3(fileName)
-            mp3file.setTags(artist=artist,
+            mp3file = MetadataMP3(fileName)
+            mp3file.set_tags(artist=artist,
                             title=track.title,
                             album=track.albums[0].title,                    # FIX
                             track_num=track.albums[0].track_position.index,
                             year=track.albums[0].year,
                             genre=track.albums[0].genre)
-            mp3file.setImage(track.og_image)
+            mp3file.set_image(track.og_image)
             mp3file.save()
 
-            self.this.setValuePrigressBar((num / len(self.listTrack)) * 100)
-            if not self.startDownload:
+            self.this.setValuePrigressBar((num / len(self.list_track)) * 100)
+            if not self.start_download:
                 # Пользователь прервал скачивание
                 break
 
         self.this.setNormalStatus()
         self.this.hidePrigressBar()
-        self.startDownload = False
+        self.start_download = False
 
 
 class Window(tk.Frame):
@@ -193,18 +190,15 @@ class Window(tk.Frame):
         super().__init__(master)
         self.master, self.yandex = master, yandex
         self.isClose = True
-        self.display_name = yandex.client['me']['account']['display_name']
-        self.birthday = yandex.client['me']['account']['birthday']
-        self.region = yandex.client['me']['account']['region']
-        self.now = yandex.client['me']['account']['now']
-        self.registered_at = yandex.client['me']['account']['registered_at']
+        self.account = yandex.client['me']['account']
+        # self.display_name = yandex.client['me']['account']['display_name']
         self.initUI()
 
     def initUI(self):
-        if self.display_name is None:
+        if self.account['display_name'] is None:
             self.master.title('SYPl')
         else:
-            self.setTitle(f'Hello, {self.display_name}!')
+            self.setTitle(f"Hello, {self.account['display_name']}!")
         self.path = __file__[:-7]
         if sys.platform == 'linux':
             ico = PhotoImage(file=self.path + 'img/favicon32.png')
@@ -243,45 +237,34 @@ class WindowAuthorization(Window):
         img.image = render
         img.pack()
 
-        LabelLogin = tk.Label(self.master,
-                              text="Enter your username, email or phone",
-                              foreground='#999', background='white',
-                              font=('Arial', 9))
+        LabelLogin = tk.Label(self.master, text="Enter your username, email or phone",
+                              foreground='#999', background='white', font=('Arial', 9))
         LabelLogin.place(x=30, y=158+addpix)
 
         self.textLogin = tk.StringVar()
-        Entrlogin = tk.Entry(frEntryLog, textvariable=self.textLogin,
-                             font=('Arial', 16), width=23)
+        Entrlogin = tk.Entry(frEntryLog, textvariable=self.textLogin, font=('Arial', 16), width=23)
         Entrlogin.pack(pady=30)
 
-        LabelPass = tk.Label(self.master, text="Password",
-                             foreground='#999', background='white',
-                             font=('Arial', 9))
+        LabelPass = tk.Label(self.master, text="Password", foreground='#999', background='white', font=('Arial', 9))
         LabelPass.place(x=30, y=217+addpix)
 
         self.textPass = tk.StringVar()
-        EntrPass = tk.Entry(frEntryLog, textvariable=self.textPass,
-                            font=('Arial', 16), width=23, show="*")
+        EntrPass = tk.Entry(frEntryLog, textvariable=self.textPass, font=('Arial', 16), width=23, show="*")
         EntrPass.pack()
 
-        self.BLog = tk.Button(frEntryLog, text="Log in", bd=0,
-                              command=self.clikLogin,
-                              width=32, height=2, bg="#fadd61",
+        self.BLog = tk.Button(frEntryLog, text="Log in", bd=0, command=self.clikLogin, width=32, height=2, bg="#fadd61",
                               font=('Arial', 11), relief="flat")
 
         # FIXME в GNOME не работает почему-то изменение фона
-        self.BLog.bind("<Enter>", lambda event,
-                       b=self.BLog: b.configure(bg="#f7c412"))
-        self.BLog.bind('<Leave>', lambda event,
-                       b=self.BLog: b.configure(bg="#fadd61"))
+        self.BLog.bind("<Enter>", lambda event, b=self.BLog: b.configure(bg="#f7c412"))
+        self.BLog.bind('<Leave>', lambda event, b=self.BLog: b.configure(bg="#fadd61"))
         self.BLog.pack(pady=10)
 
     def clikLogin(self):
         '''
         Обработка кнопки 'Log in': генерация и сохранение токена
         '''
-        error = self.yandex.generateToken(self.textLogin.get(),
-                                          self.textPass.get())
+        error = self.yandex.generate_token(self.textLogin.get(), self.textPass.get())
         if error:
             self.showError(error)
         else:
@@ -289,10 +272,7 @@ class WindowAuthorization(Window):
             self.master.destroy()
 
     def showError(self, err):
-        error = tk.Label(self.master,
-                         text=err,
-                         foreground='#ff0000', background='white',
-                         font=('Arial', 12))
+        error = tk.Label(self.master, text=err, foreground='#ff0000', background='white', font=('Arial', 12))
         error.place(x=10, y=450)
 
 
@@ -300,9 +280,8 @@ class WindowMain(Window):
     '''
     Окно с таблицей треков и полем с указанием места сохранения
     '''
-    def __init__(self, master=None, yandex=None, setting=None):
+    def __init__(self, master=None, yandex=None):
         self.SavePathString = tk.StringVar()
-        self.setting = setting
         master.minsize(width=750, height=400)
         master.configure(background='white')
         super().__init__(master, yandex)
@@ -315,7 +294,7 @@ class WindowMain(Window):
         self.initInfo()
 
     def initInfo(self):
-        threadYd = Thread(target=self.yandex.getPlayListsInfo)
+        threadYd = Thread(target=self.yandex.get_play_lists_info)
         threadYd.start()
 
         threadCount = Thread(target=self.changeButtonImg)
@@ -330,34 +309,21 @@ class WindowMain(Window):
         frTable = ttk.Frame(self.master)
         frBottom = ttk.Frame(self.master)
 
-        self.createButton(
-            frButtons, 'playlistOfTheDay',
-            'PlaylistOftheDay100.png', 'PlaylistOftheDayCancel100.png',
-            '#7ad537', '#1fba5b', self.loadPlaylistOftheDay)
-        self.createButton(
-            frButtons, 'recentTracks',
-            'Premiere100.png', 'PremiereCancel100.png',
-            '#fc990e', '#fc5c12', self.loadRecentTracks)
-        self.createButton(
-            frButtons, 'neverHeard',
-            'DejaVu100.png', 'DejaVuCancel100.png',
-            '#ec38fe', '#9438f6', self.loadNeverHeard)
-        self.createButton(
-            frButtons, 'missedLikes',
-            'SecretStash100.png', 'SecretStashCancel100.png',
-            '#329cf7', '#0064d2', self.loadMissedLikes)
-        self.createButton(
-            frButtons, 'podcasts',
-            'PodcastsWeekly100.png', 'PodcastsWeeklyCancel100.png',
-            '#dcedff', '#b6daff', self.loadPodcasts)
+        self.createButton(frButtons, 'playlistOfTheDay', 'PlaylistOftheDay100.png', 'PlaylistOftheDayCancel100.png',
+                          '#7ad537', '#1fba5b', self.loadPlaylistOftheDay)
+        self.createButton(frButtons, 'recentTracks', 'Premiere100.png', 'PremiereCancel100.png',
+                          '#fc990e', '#fc5c12', self.loadRecentTracks)
+        self.createButton(frButtons, 'neverHeard', 'DejaVu100.png', 'DejaVuCancel100.png',
+                          '#ec38fe', '#9438f6', self.loadNeverHeard)
+        self.createButton(frButtons, 'missedLikes', 'SecretStash100.png', 'SecretStashCancel100.png',
+                          '#329cf7', '#0064d2', self.loadMissedLikes)
+        self.createButton(frButtons, 'podcasts', 'PodcastsWeekly100.png', 'PodcastsWeeklyCancel100.png',
+                          '#dcedff', '#b6daff', self.loadPodcasts)
 
-        self.labTitle = tk.Label(frMesg, padx="15", fg="#000", bg="#ffdb4d",
-                                 wraplength=215, font=LARGE_FONT)
-        self.lablInf1 = tk.Label(frMesg, padx="3", fg="#000", bg="#ffdb4d",
-                                 wraplength=215, font=MEDIUM_FONT,
+        self.labTitle = tk.Label(frMesg, padx="15", fg="#000", bg="#ffdb4d", wraplength=215, font=LARGE_FONT)
+        self.lablInf1 = tk.Label(frMesg, padx="3", fg="#000", bg="#ffdb4d", wraplength=215, font=MEDIUM_FONT,
                                  justify=tk.LEFT, anchor=tk.W)
-        self.lablInf2 = tk.Label(frMesg, padx="3", fg="#000", bg="#ffdb4d",
-                                 wraplength=215, font=MEDIUM_FONT,
+        self.lablInf2 = tk.Label(frMesg, padx="3", fg="#000", bg="#ffdb4d", wraplength=215, font=MEDIUM_FONT,
                                  justify=tk.LEFT, anchor=tk.W)
 
         self.bar = ttk.Progressbar(frMesg, length=100)
@@ -383,29 +349,24 @@ class WindowMain(Window):
         self.table.config(yscrollcommand=sb.set)
         sb.pack(side=tk.RIGHT, fill='y')
 
-        self.pathSaveFolder = tk.Entry(frBottom, relief="flat", cursor="arrow",
-                                       textvariable=self.SavePathString)
+        self.pathSaveFolder = tk.Entry(frBottom, relief="flat", cursor="arrow", textvariable=self.SavePathString)
 
         self.pathSaveFolder.configure(state='readonly')
         self.pathSaveFolder.bind('<Button-1>', self.chooseFolder)
 
-        folder = self.setting.getParam('folder')
+        folder = self.yandex.setting.get_param('folder')
         if folder is None:
             folder = os.getcwd()
         self.SavePathString.set(folder)
 
-        self.bSave = tk.Button(frBottom, text="Save", bg='#fadd61',
-                               command=self.dowloadTracks, width=10,
+        self.bSave = tk.Button(frBottom, text="Save", bg='#fadd61', command=self.dowloadTracks, width=10,
                                relief="flat", pady="5")
-        self.bSave.bind(
-            '<Enter>', lambda event, b=self.bSave: b.configure(bg="#f7c412"))  # #f7c412
-        self.bSave.bind(
-            '<Leave>', lambda event, b=self.bSave: b.configure(bg="#fadd61"))
+        self.bSave.bind('<Enter>', lambda event, b=self.bSave: b.configure(bg="#f7c412"))  # #f7c412
+        self.bSave.bind('<Leave>', lambda event, b=self.bSave: b.configure(bg="#fadd61"))
         self.bSave.configure(state='disabled')
 
         self.LablStatus = tk.Label(frBottom, pady="0", fg="#777", bg="#fff",
-                                   font=SMALL_FONT, justify=tk.LEFT,
-                                   anchor=tk.W)
+                                   font=SMALL_FONT, justify=tk.LEFT, anchor=tk.W)
 
         frButtons.pack(side=tk.TOP, fill=tk.BOTH, expand=0, pady=0)
         frTable.pack(fill=tk.BOTH, expand=1)
@@ -422,8 +383,7 @@ class WindowMain(Window):
 
     def addRow(self, num, title, artist, dura):
 
-        self.table.insert("", num, iid=None, text=num,
-                          values=(title, artist, dura))
+        self.table.insert("", num, iid=None, text=num, values=(title, artist, dura))
 
     def getPath(self):
         return self.SavePathString.get()
@@ -445,39 +405,37 @@ class WindowMain(Window):
     def chooseFolder(self, event):
         if self.pathSaveFolder['state'] == 'readonly':
             title = 'Select directory to download tracks'
-            folder = filedialog.askdirectory(
-                       title=title,
-                       initialdir=self.SavePathString.get())
+            folder = filedialog.askdirectory(title=title, initialdir=self.SavePathString.get())
             if folder:
                 self.SavePathString.set(folder+'/')
-                self.setting.save('folder', folder+'/')
+                self.yandex.setting.save('folder', folder+'/')
 
     def getTracks(self):
-        if self.yandex.startDownload:
+        if self.yandex.start_download:
             return
 
-        if self.yandex.startLoadPl:
-            self.yandex.startLoadPl = False
+        if self.yandex.start_load_Pl:
+            self.yandex.start_load_Pl = False
         else:
-            self.yandex.startLoadPl = True
-            thread = Thread(target=self.yandex.playListGet)
+            self.yandex.start_load_Pl = True
+            thread = Thread(target=self.yandex.get_play_list)
             thread.start()
 
     def dowloadTracks(self):
-        if self.yandex.startDownload:
-            self.yandex.startDownload = False
+        if self.yandex.start_download:
+            self.yandex.start_download = False
             self.bSave.configure(state='disabled')
         else:
-            self.yandex.startDownload = True
-            thread = Thread(target=self.yandex.saveTracks)
+            self.yandex.start_download = True
+            thread = Thread(target=self.yandex.save_tracks)
             thread.start()
             self.bSave['text'] = 'Stop'
 
     def setRunStatus(self, playList):
-        if self.yandex.startDownload:
+        if self.yandex.start_download:
             return
 
-        if not self.yandex.startLoadPl:
+        if not self.yandex.start_load_Pl:
             if self.playlistType is not None:
                 self.lBttns[self.playlistType]['image'] = self.bPhotos[self.playlistType]
             self.lBttns[playList]['image'] = self.bPhotos[playList+'Cancel']
@@ -507,36 +465,28 @@ class WindowMain(Window):
         self.setRunStatus('podcasts')
         self.getTracks()
 
-    def createButton(self, frame, nameButtom,
-                     bPhoto, bPhotoCancel,
-                     Enter, Leave,
-                     command):
+    def createButton(self, frame, nameButtom, bPhoto, bPhotoCancel, Enter, Leave, command):
         bPhoto = f'img/{bPhoto}'
         bPhotoCancel = f'img/{bPhotoCancel}'
         self.bPhotos[nameButtom] = PhotoImage(file=self.path+bPhoto)
-        self.bPhotos[nameButtom+'Cancel'] = PhotoImage(
-            file=self.path+bPhotoCancel)
-        self.lBttns[nameButtom] = tk.Button(
-            frame, width=100, height=100,
-            bg=Leave, relief="flat", command=command)
+        self.bPhotos[nameButtom+'Cancel'] = PhotoImage(file=self.path+bPhotoCancel)
+        self.lBttns[nameButtom] = tk.Button(frame, width=100, height=100, bg=Leave, relief="flat", command=command)
         self.lBttns[nameButtom]['image'] = self.bPhotos[nameButtom]
-        self.lBttns[nameButtom].bind(
-            '<Enter>', lambda event, b=[nameButtom, Enter]:
-            self.fnbuttonBEnter(event, b))
-        self.lBttns[nameButtom].bind(
-            '<Leave>', lambda event, b=[nameButtom, Leave]:
-            self.fnbuttonBLeave(event, b))
+        self.lBttns[nameButtom].bind('<Enter>', lambda event, b=[nameButtom, Enter]: self.fnbuttonBEnter(event, b))
+        self.lBttns[nameButtom].bind('<Leave>', lambda event, b=[nameButtom, Leave]: self.fnbuttonBLeave(event, b))
 
     def changeButtonImg(self):
+        # run in Thread
         brk = 0
         count = 0
-        while 'playlistOfTheDay' not in self.yandex.playListsInfo:
+        while 'playlistOfTheDay' not in self.yandex.play_lists_Info:
+            # wite loging to yandex
             time.sleep(.1)
             if brk > 100:
                 break
             brk += 1
         else:
-            count = self.yandex.playListsInfo['playlistOfTheDay'].play_counter.value
+            count = self.yandex.play_lists_Info['playlistOfTheDay'].play_counter.value
 
         if not count:
             return
@@ -570,18 +520,18 @@ class WindowMain(Window):
     def fnbuttonBEnter(self, event, data):
         self.lBttns[data[0]].configure(bg=data[1])
 
-        if data[0] in self.yandex.playListsInfo:
-            if self.yandex.playListsInfo[data[0]].play_counter is None:
-                text = self.yandex.playListsInfo[data[0]].description_formatted
+        if data[0] in self.yandex.play_lists_Info:
+            if self.yandex.play_lists_Info[data[0]].play_counter is None:
+                text = self.yandex.play_lists_Info[data[0]].description_formatted
             else:
-                text = self.yandex.playListsInfo[data[0]].play_counter.description
+                text = self.yandex.play_lists_Info[data[0]].play_counter.description
 
             self.LablStatus['text'] = text
-            self.labTitle['text'] = self.yandex.playListsInfo[data[0]].title
-            track_count = self.yandex.playListsInfo[data[0]].track_count
-            durStr = self.yandex.playListsInfo[data[0]].duration_ms
+            self.labTitle['text'] = self.yandex.play_lists_Info[data[0]].title
+            track_count = self.yandex.play_lists_Info[data[0]].track_count
+            durStr = self.yandex.play_lists_Info[data[0]].duration_ms
             durStr = utils.timeStr(durStr, 0)
-            updated = isoparse(self.yandex.playListsInfo[data[0]].modified)
+            updated = isoparse(self.yandex.play_lists_Info[data[0]].modified)
             updated = updated.strftime('%d.%m.%Y %a')
             self.lablInf1['text'] = f'{track_count} tracks, duration {durStr}'
             self.lablInf2['text'] = f'Updated on {updated}'
@@ -589,13 +539,13 @@ class WindowMain(Window):
 
 class WM:
     def __init__(self):
-        self.setting = setting.setting()
+        self.setting = setting.Setting()
         logger = logging.getLogger('yandex_music')
         logger.setLevel(logging.ERROR)
         self.root = None
         self.windowClose = False
         try:
-            self.yandex = GoYandex()
+            self.yandex = GoYandex(setting=self.setting)
         except exceptions.NetworkError as e:
             logging.error(e)
             print(e)
@@ -608,28 +558,25 @@ class WM:
 
     def run(self):
         # Если нет токена, то генерируем его из логина и пароля
-        if self.setting.getParam('token') is None:
+        if self.setting.get_param('token') is None:
             self.showWindowAuthorization()
 
         if self.windowClose:
             sys.exit()
 
-        self.yandex.authorizationToken(self.setting.getParam('token'))
+        self.yandex.authorization_token(self.setting.get_param('token'))
         self.showWindowMain()
 
     def showWindowAuthorization(self):
         self.root = tk.Tk()
         self.root.protocol('WM_DELETE_WINDOW', self.processingExit)
-        self.showWindow = WindowAuthorization(master=self.root,
-                                              yandex=GoYandex())
+        self.showWindow = WindowAuthorization(master=self.root, yandex=self.yandex)
         self.showWindow.mainloop()
 
     def showWindowMain(self):
         self.root = tk.Tk()
         self.root.protocol('WM_DELETE_WINDOW', self.processingExit)
-        self.showWindow = WindowMain(master=self.root,
-                                     yandex=self.yandex,
-                                     setting=self.setting)
+        self.showWindow = WindowMain(master=self.root, yandex=self.yandex)
         self.showWindow.mainloop()
 
     def processingExit(self):

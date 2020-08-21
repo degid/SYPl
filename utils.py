@@ -1,5 +1,5 @@
-import PPMdata
 import struct
+import PPMdata
 
 
 def timeStr(duration_ms, colon=True):
@@ -98,8 +98,7 @@ class Image:
 
     def getPPM(self):
         Px = self.type
-        Px += bytes(f'\n{self.width} {self.height}\n{self.mode}\n',
-                    encoding='utf8')
+        Px += bytes(f'\n{self.width} {self.height}\n{self.mode}\n', encoding='utf8')
         return Px + b''.join(list(map(packRGB, self.BitMap)))
 
     def addCount(self, sybmols, X, Y, alpha):
@@ -109,16 +108,16 @@ class Image:
         '''
         sizeSymb = (9, 13)
         sybmols = list(map(int, list(str(sybmols))))
-        center = len(sybmols) * sizeSymb[0] // 2 - 1
+        center = len(sybmols)*sizeSymb[0] // 2 - 1
         for symb in sybmols:
             BitMap = PPMdata.getNumsPPM(symb)
             symbolMap = list(group(BitMap, 3))
 
             for column in range(sizeSymb[0]):
                 for row in range(sizeSymb[1]):
-                    color = symbolMap[row * sizeSymb[0] + column]
+                    color = symbolMap[row*sizeSymb[0] + column]
                     if color not in alpha:
-                        xyPixel = (row + Y) * self.width + column + X - center
+                        xyPixel = (row + Y)*self.width + column + X - center
                         self.BitMap[xyPixel] = color
             X += sizeSymb[0]
 

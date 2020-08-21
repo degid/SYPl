@@ -4,7 +4,7 @@ import pickle
 # import shelve
 
 
-class setting:
+class Setting:
     def __init__(self):
         if sys.platform == 'linux':
             self.pklFile = os.path.expanduser('~/.local/share/SYPl/設定.pkl')
@@ -12,9 +12,9 @@ class setting:
             # APPDATA
             self.pklFile = os.path.expanduser('~/AppData/Roaming/SYPl/設定.pkl')
         self.set = dict()
-        self.chekFile()
+        self.__chek_file()
 
-    def chekFile(self):
+    def __chek_file(self):
         if not os.path.exists(self.pklFile[:-6]):
             os.makedirs(self.pklFile[:-6])
         if not os.path.isfile(self.pklFile):
@@ -29,7 +29,7 @@ class setting:
         with open(self.pklFile, 'wb') as f:
             pickle.dump(self.set, f)
 
-    def getParam(self, param):
+    def get_param(self, param):
         with open(self.pklFile, 'rb') as f:
             self.set = pickle.load(f)
 
