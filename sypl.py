@@ -34,13 +34,15 @@ class MetadataMP3:
             setattr(self.audiofile.tag, tag, kwargs[tag])
 
     def set_image(self, image):
-        # FIXME: tempfile
-        with open('cover.jpg', 'wb') as f:
-            url_image = f"http://{image.replace('%%', '400x400')}"
-            res = requests.get(url_image)
-            f.write(res.content)
-        # FIXME add exception
-        self.audiofile.tag.images.set(3, open('cover.jpg', 'rb').read(), 'image/jpeg')
+        url_image = f"http://{image.replace('%%', '400x400')}"
+        res = requests.get(url_image)
+        with tempfile.TemporaryFile(delete=False) as fp:
+            fName = fp.name
+            fp.write(res.content)
+            fp.close()
+            # FIXME add exception
+            self.audiofile.tag.images.set(3, open(fName, 'rb').read(), 'image/jpeg')
+            os.remove(fName)
 
     def save(self):
         self.audiofile.tag.save(version=eyed3.id3.ID3_DEFAULT_VERSION, encoding='utf-8')
@@ -235,14 +237,14 @@ class WindowAuthorization(Window):
 
         labellogin = tk.Label(self.master, text="Enter your username, email or phone",
                               foreground='#999', background='white', font=('Arial', 9))
-        labellogin.place(x=30, y=158+addpix)
+        labellogin.place(x=30, y=158 + addpix)
 
         self.text_login_var = tk.StringVar()
         entrylogin = tk.Entry(frEntry_log, textvariable=self.text_login_var, font=('Arial', 16), width=23)
         entrylogin.pack(pady=30)
 
         labelpass = tk.Label(self.master, text="Password", foreground='#999', background='white', font=('Arial', 9))
-        labelpass.place(x=30, y=217+addpix)
+        labelpass.place(x=30, y=217 + addpix)
 
         self.text_pass_var = tk.StringVar()
         entrypass = tk.Entry(frEntry_log, textvariable=self.text_pass_var, font=('Arial', 16), width=23, show="*")
@@ -437,7 +439,7 @@ class WindowMain(Window):
         if not self.yandex.start_load_Pl:
             if self.play_list_type is not None:
                 self.lBttns[self.play_list_type]['image'] = self.bPhotos[self.play_list_type]
-            self.lBttns[playList]['image'] = self.bPhotos[playList+'Cancel']
+            self.lBttns[playList]['image'] = self.bPhotos[f'{playList}Cancel']
             self.play_list_type = playList
             self.path_save_folder.configure(state='disabled')
             self.table.delete(*self.table.get_children())
@@ -467,8 +469,8 @@ class WindowMain(Window):
     def create_button(self, frame, nameButtom, bPhoto, bPhotoCancel, Enter, Leave, command):
         bPhoto = f'img/{bPhoto}'
         bPhotoCancel = f'img/{bPhotoCancel}'
-        self.bPhotos[nameButtom] = PhotoImage(file=self.path+bPhoto)
-        self.bPhotos[nameButtom+'Cancel'] = PhotoImage(file=self.path+bPhotoCancel)
+        self.bPhotos[nameButtom] = PhotoImage(file=f'{self.path}{bPhoto}')
+        self.bPhotos[f'{nameButtom}Cancel'] = PhotoImage(file=f'{self.path}{bPhotoCancel}')
         self.lBttns[nameButtom] = tk.Button(frame, width=100, height=100, bg=Leave, relief="flat", command=command)
         self.lBttns[nameButtom]['image'] = self.bPhotos[nameButtom]
         self.lBttns[nameButtom].bind('<Enter>', lambda event, b=[nameButtom, Enter]: self.fn_btn_Enter(event, b))
