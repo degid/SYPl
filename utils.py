@@ -1,5 +1,8 @@
 import struct
 import PPMdata
+import tempfile
+import os
+from tkinter import PhotoImage
 
 
 def timeStr(duration_ms, colon=True):
@@ -96,10 +99,19 @@ class Image:
         self.BitMap = list(group(self.data[self.OffBits:], 3))
         return i + 1
 
-    def getPPM(self):
+    def PhotoImage(self):
         Px = self.type
         Px += bytes(f'\n{self.width} {self.height}\n{self.mode}\n', encoding='utf8')
-        return Px + b''.join(list(map(packRGB, self.BitMap)))
+        Px += b''.join(list(map(packRGB, self.BitMap)))
+
+        image = None
+        with tempfile.TemporaryFile(delete=False) as fp:
+            fName = fp.name
+            fp.write(Px)
+            fp.close()
+            image = PhotoImage(file=fName)
+            os.remove(fName)
+        return image
 
     def addCount(self, sybmols, X, Y, alpha):
         ''' Add number to a picture
