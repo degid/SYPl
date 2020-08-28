@@ -99,7 +99,7 @@ class Image:
         self.BitMap = list(group(self.data[self.OffBits:], 3))
         return i + 1
 
-    def PhotoImage(self):
+    def __call__(self):
         Px = self.type
         Px += bytes(f'\n{self.width} {self.height}\n{self.mode}\n', encoding='utf8')
         Px += b''.join(list(map(packRGB, self.BitMap)))

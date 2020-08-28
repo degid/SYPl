@@ -494,11 +494,11 @@ class WindowMain(Window):
 
         imgPPM = utils.Image(file=self.path + 'img/PlaylistOftheDay100Num.ppm')
         imgPPM.addCount(count, 10, 83, [(77, 200, 73), (82, 201, 79)])
-        self.bPhotos['playlistOfTheDay'] = imgPPM.PhotoImage()
+        self.bPhotos['playlistOfTheDay'] = imgPPM()
         self.lBttns['playlistOfTheDay']['image'] = self.bPhotos['playlistOfTheDay']
 
         imgPPM.darker(44, 57, 33)
-        self.bPhotos['playlistOfTheDayCancel'] = imgPPM.PhotoImage()
+        self.bPhotos['playlistOfTheDayCancel'] = imgPPM()
 
     def fn_btn_leave(self, event, data):
         if self.play_list_type == data[0]:
