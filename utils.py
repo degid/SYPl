@@ -104,13 +104,12 @@ class Image:
         Px += bytes(f'\n{self.width} {self.height}\n{self.mode}\n', encoding='utf8')
         Px += b''.join(list(map(packRGB, self.BitMap)))
 
-        image = None
-        with tempfile.TemporaryFile(delete=False) as fp:
-            fName = fp.name
-            fp.write(Px)
-            fp.close()
-            image = PhotoImage(file=fName)
-            os.remove(fName)
+        fp = tempfile.NamedTemporaryFile(delete=False)
+        fName = fp.name
+        fp.write(Px)
+        fp.close()
+        image = PhotoImage(file=fName)
+        os.remove(fName)
         return image
 
     def addCount(self, sybmols, X, Y, alpha):
